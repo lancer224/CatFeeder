@@ -1,0 +1,145 @@
+﻿<Window x:Class="CatFeeder.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cat Feeder Control"
+        Height="780" Width="1150"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI" FontSize="12">
+
+    <DockPanel>
+        <!-- STATUS BAR -->
+        <StatusBar DockPanel.Dock="Bottom" Background="#1E1E1E" Foreground="White">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusText" FontFamily="Consolas" Text="..."/>
+            </StatusBarItem>
+        </StatusBar>
+
+        <TabControl Margin="5">
+
+            <!-- ================== FEEDERS ================== -->
+            <TabItem Header="Feeders">
+                <Grid Margin="5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="290"/>
+                    </Grid.ColumnDefinitions>
+
+                    <DataGrid x:Name="FeedersGrid"
+                              Grid.Column="0"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Single"
+                              CanUserAddRows="False"
+                              GridLinesVisibility="Horizontal"
+                              HeadersVisibility="Column">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEmpty}" Value="True">
+                                        <Setter Property="Foreground" Value="OrangeRed"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Name"     Binding="{Binding Name}"        Width="150"/>
+                            <DataGridTextColumn Header="Type"     Binding="{Binding TypeName}"    Width="110"/>
+                            <DataGridTextColumn Header="Food"     Binding="{Binding FoodText}"    Width="110"/>
+                            <DataGridTextColumn Header="Water"    Binding="{Binding WaterText}"   Width="90"/>
+                            <DataGridTextColumn Header="Schedule" Binding="{Binding ScheduleName}" Width="140"/>
+                            <DataGridTextColumn Header="Labels"   Binding="{Binding LabelsText}"  Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                                  Margin="8,0,0,0" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <Button Content="+ Dispenser"      Click="AddDispenser_Click"    Margin="0,2"/>
+                            <Button Content="+ Weight Sensor"  Click="AddWeightSensor_Click"  Margin="0,2"/>
+                            <Button Content="Remove"           Click="RemoveFeeder_Click"     Margin="0,2"/>
+                            <Separator Margin="0,6"/>
+                            <Button Content="Refill Food"      Click="RefillFood_Click"       Margin="0,2"/>
+                            <Button Content="Refill Water"     Click="RefillWater_Click"      Margin="0,2"/>
+                            <Button Content="Feed Now"         Click="FeedNow_Click"          Margin="0,2"/>
+                            <Separator Margin="0,6"/>
+                            <Button Content="View Log"         Click="ViewLog_Click"          Margin="0,2"/>
+                            <Button Content="Export Log (.txt)" Click="ExportLog_Click"       Margin="0,2"/>
+                            <Separator Margin="0,6"/>
+                            <Button Content="Postpone Next"    Click="PostponeNext_Click"     Margin="0,2"/>
+                            <Button Content="Cancel Next"      Click="CancelNext_Click"       Margin="0,2"/>
+                            <Button Content="Assign Schedule"  Click="AssignSchedule_Click"   Margin="0,2"/>
+                            <Button Content="Edit Labels"      Click="EditLabels_Click"       Margin="0,2"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- ================== SCHEDULES ================== -->
+            <TabItem Header="Schedules">
+                <Grid Margin="5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="320"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <DockPanel Grid.Column="0">
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,5,0,0">
+                            <Button Content="+ Add"    Click="AddSchedule_Click"    Margin="2" Padding="8,3"/>
+                            <Button Content="Remove"   Click="RemoveSchedule_Click" Margin="2" Padding="8,3"/>
+                            <Button Content="Export"   Click="ExportSchedule_Click" Margin="2" Padding="8,3"/>
+                            <Button Content="Import"   Click="ImportSchedule_Click" Margin="2" Padding="8,3"/>
+                        </StackPanel>
+                        <ListBox x:Name="SchedulesList"
+                                 DisplayMemberPath="Name"
+                                 SelectionChanged="SchedulesList_SelectionChanged"/>
+                    </DockPanel>
+
+                    <DockPanel Grid.Column="1" Margin="8,0,0,0">
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,5,0,0">
+                            <Button Content="+ Feeding" Click="AddFeeding_Click"    Margin="2" Padding="8,3"/>
+                            <Button Content="- Feeding" Click="RemoveFeeding_Click" Margin="2" Padding="8,3"/>
+                        </StackPanel>
+                        <DataGrid x:Name="FeedingsGrid"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Single"
+                                  CanUserAddRows="False">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Time"   Binding="{Binding TimeText}"   Width="130"/>
+                                <DataGridTextColumn Header="Amount" Binding="{Binding AmountText}" Width="130"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- ================== SIMULATION ================== -->
+            <TabItem Header="Simulation">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock x:Name="SimStatusText" FontFamily="Consolas" FontSize="13" Margin="0,4"/>
+                    <TextBlock Grid.Row="1" x:Name="CatStatusText" FontFamily="Consolas" FontSize="13" Margin="0,4"/>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6">
+                        <Button Content="▶ Start"            Click="SimStart_Click"          Margin="2" Padding="12,5"/>
+                        <Button Content="⏸ Pause"            Click="SimPause_Click"          Margin="2" Padding="12,5"/>
+                        <Button Content="Set Multiplier"     Click="SimSetMultiplier_Click"  Margin="2" Padding="12,5"/>
+                        <Button Content="Set Cat Hunger"     Click="SimSetCatHunger_Click"   Margin="2" Padding="12,5"/>
+                    </StackPanel>
+
+                    <GroupBox Grid.Row="3" Header="Cat activity log" Margin="0,6,0,0">
+                        <ListBox x:Name="CatLogList" FontFamily="Consolas" FontSize="11"/>
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+    </DockPanel>
+</Window>
