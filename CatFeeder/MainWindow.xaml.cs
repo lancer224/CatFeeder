@@ -1,5 +1,7 @@
 ﻿using CatFeeder.Application;
 using CatFeeder.Domain;
+using CatFeeder.Infrastructure;
+using CatFeeder.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -15,6 +17,7 @@ namespace CatFeeder
         private readonly User _user = new User { Name = "Владелец" };
         private readonly FeederService _fs;
         private readonly SimulationService _sim;
+        private readonly ImportExportService _ioService; // Новый сервис
         private readonly DispatcherTimer _uiTimer;
 
         private readonly ObservableCollection<FeederRow> _feederRows = new ObservableCollection<FeederRow>();
@@ -29,13 +32,15 @@ namespace CatFeeder
 
             _fs = new FeederService(_user);
             _sim = new SimulationService(_fs);
+            _ioService = new ImportExportService(_user);
+
             _sim.CatEvent += e => { lock (_catEvents) _catEvents.Enqueue(e); };
 
             FeedersGrid.ItemsSource = _feederRows;
             CatsGrid.ItemsSource = _catRows;
             FeedingsGrid.ItemsSource = _feedingRows;
 
-            Seed();
+            SeedData.Initialize(_fs); // Вызов вынесенного сидера
 
             _uiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _uiTimer.Tick += (_, _) => RefreshAll();
@@ -93,7 +98,6 @@ namespace CatFeeder
                 _feederRows.Add(new FeederRow(f, schedName));
             }
 
-            // Сохраняем выделение кормушки
             if (selectedId != null)
             {
                 foreach (var row in _feederRows)
@@ -118,7 +122,6 @@ namespace CatFeeder
                 _catRows.Add(new CatRow(c, feeder != null ? feeder.Name : "<Любая>"));
             }
 
-            // Сохраняем выделение кота
             if (selectedId != null)
             {
                 foreach (var row in _catRows)
@@ -343,7 +346,7 @@ namespace CatFeeder
             };
             if (dlg.ShowDialog() != true) return;
 
-            _fs.ExportFeederLog(f, dlg.FileName);
+            _ioService.ExportFeederLog(f, dlg.FileName); // Используем новый сервис
             MessageBox.Show("Лог успешно сохранен в:\n" + dlg.FileName, "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
@@ -422,7 +425,7 @@ namespace CatFeeder
                 FileName = $"schedule_{sch.Name}.json"
             };
             if (dlg.ShowDialog() != true) return;
-            _fs.ExportSchedule(sch.Id, dlg.FileName);
+            _ioService.ExportSchedule(sch.Id, dlg.FileName); // Используем новый сервис
             MessageBox.Show("Расписание успешно экспортировано!", "Успех");
         }
 
@@ -430,7 +433,7 @@ namespace CatFeeder
         {
             var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Загрузить расписание", Filter = "JSON (*.json)|*.json" };
             if (dlg.ShowDialog() != true) return;
-            var r = _fs.ImportSchedule(dlg.FileName);
+            var r = _ioService.ImportSchedule(dlg.FileName); // Используем новый сервис
             MessageBox.Show(r != null ? "Импортировано: " + r.Name : "Ошибка импорта");
             RefreshAll();
         }
@@ -474,77 +477,5 @@ namespace CatFeeder
             if (double.TryParse(str, out var m) && m > 0) _sim.TimeMultiplier = m;
             RefreshAll();
         }
-
-        // ============================================================
-        //  SEED
-        // ============================================================
-        private void Seed()
-        {
-            var f1 = _fs.AddFeeder(FeederType.Dispenser, "Кухня", 500);
-            f1.Labels.AddRange(new[] { "Барсик", "кухня" });
-
-            var f2 = _fs.AddFeeder(FeederType.WeightSensor, "Загородный дом", 1000);
-            f2.Labels.Add("дом");
-
-            var dry = _fs.AddSchedule("Сухой корм");
-            _fs.AddFeeding(dry.Id, TimeSpan.FromHours(8), 50);
-            _fs.AddFeeding(dry.Id, TimeSpan.FromHours(18), 50);
-            _fs.AssignSchedule(f1.Id, dry.Id);
-
-            // Привязываем первого кота к Кухне
-            var cat1 = _fs.AddCat("Барсик");
-            cat1.AssignedFeederId = f1.Id;
-
-            // Привязываем второго кота к Загородному дому
-            var cat2 = _fs.AddCat("Мурка");
-            cat2.AssignedFeederId = f2.Id;
-        }
-    }
-
-    // ---------- ROW WRAPPERS ----------
-    public class FeederRow
-    {
-        public Feeder Feeder { get; }
-        public string ScheduleName { get; }
-
-        public FeederRow(Feeder f, string schedName)
-        {
-            Feeder = f;
-            ScheduleName = schedName;
-        }
-
-        public string Name => Feeder.Name;
-        public string TypeName => Feeder.Type == FeederType.Dispenser ? "Дозатор" : "По весу";
-        public string FoodText => $"{Feeder.FoodAmount:F1} / {Feeder.FoodCapacity:F0} г";
-        public string BowlText => $"{Feeder.BowlAmount:F1} г";
-        public string WaterText => $"{Feeder.WaterAmount:F0} мл";
-        public string LabelsText => string.Join(", ", Feeder.Labels);
-        public bool IsEmpty => Feeder.IsFoodEmpty;
-    }
-
-    public class CatRow
-    {
-        public Cat Cat { get; }
-        public string FeederName { get; }
-
-        public CatRow(Cat c, string feederName)
-        {
-            Cat = c;
-            FeederName = feederName;
-        }
-
-        public string Name => Cat.Name;
-        public string HungerText => $"{Cat.Hunger:F0} / 100";
-        public string ThresholdText => $"{Cat.EatThreshold:F0}";
-        public string WaterRateText => $"{Cat.WaterConsumptionRate:F1} мл";
-    }
-
-    public class FeedingRow
-    {
-        public ScheduledFeeding Feeding { get; }
-        public FeedingRow(ScheduledFeeding sf) => Feeding = sf;
-
-        public string TimeText => Feeding.TimeOfDay.ToString(@"hh\:mm");
-        public string AmountText => $"{Feeding.AmountGrams} г";
     }
 }
